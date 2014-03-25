@@ -365,6 +365,9 @@ int main(int argc, char **argv)
     msg.msg_iovlen = 1;
     iov.iov_base = packet;
     iov.iov_len = buf_size;
+
+    if (debug)
+	fprintf(stderr, "Waiting for message.\n");
     
     while (1) {
       struct dhcp_packet *newbuf;
@@ -382,11 +385,18 @@ int main(int argc, char **argv)
     }
     
     while ((sz = recvmsg(fd, &msg, 0)) == -1 && errno == EINTR);
+
+    if (debug)
+	fprintf(stderr, "Received. sz = %d, msg.msg_controllen = %d\n",
+		sz, msg.msg_controllen);
     
     if ((msg.msg_flags & MSG_TRUNC) ||
 	sz < (ssize_t)(sizeof(struct dhcp_packet)) || 
 	msg.msg_controllen < sizeof(struct cmsghdr))
       continue;
+
+    if (debug)
+	fprintf(stderr, "Passed format check.\n");
     
     iface_index = 0;
     for (cmptr = CMSG_FIRSTHDR(&msg); cmptr; cmptr = CMSG_NXTHDR(&msg, cmptr))
@@ -401,20 +411,36 @@ int main(int argc, char **argv)
 	}
     
     if (!(ifr.ifr_ifindex = iface_index) || ioctl(fd, SIOCGIFNAME, &ifr) == -1)
+    {
+      fprintf(stderr, "Failed check 1.\n");
       continue;
+    }
     	 
     ifr.ifr_addr.sa_family = AF_INET;
     if (ioctl(fd, SIOCGIFADDR, &ifr) == -1)
+    {
+      fprintf(stderr, "Failed check 2.\n");
       continue;
+    }
     else
       iface_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
     
     /* last ditch loop squashing. */
     if ((packet->hops++) > 20)
+    {
+      fprintf(stderr, "Failed check 3.\n");
       continue;
+    }
+
+    if (debug)
+	fprintf(stderr, "packet->hlen = %d (DHCP_CHADDR_MAX = %d)\n", 
+		packet->hlen, DHCP_CHADDR_MAX);
 
     if (packet->hlen > DHCP_CHADDR_MAX)
       continue;
+
+    if (debug)
+	fprintf(stderr, "packet->op = %d\n", packet->op);
 
     if (packet->op == BOOTREQUEST)
       {
