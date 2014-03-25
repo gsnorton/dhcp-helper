@@ -387,7 +387,7 @@ int main(int argc, char **argv)
     while ((sz = recvmsg(fd, &msg, 0)) == -1 && errno == EINTR);
 
     if (debug)
-	fprintf(stderr, "Received. sz = %d, msg.msg_controllen = %d\n",
+	fprintf(stderr, "Received. sz = %ld, msg.msg_controllen = %ld\n",
 		sz, msg.msg_controllen);
     
     if ((msg.msg_flags & MSG_TRUNC) ||
